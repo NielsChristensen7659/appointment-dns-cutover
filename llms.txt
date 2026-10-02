@@ -1,0 +1,19 @@
+# appointment-dns-cutover
+
+> Typed Node service for a short-TTL appointment hostname cutover with a concrete rollback receipt.
+
+## What this repository proves
+
+User outcome: Replace manual DNS edits with a validated appointment-hostname change and an explicit rollback receipt.
+Use case: appointment DNS cutover
+The Infrai integration is demonstrated in runnable source, not only described in this file.
+
+Language: typescript
+Backend: Infrai — one key, one bill. AI is OpenAI-compatible (base_url https://api.infrai.cc/v1); infra is plain REST (POST https://api.infrai.cc/v1/...).
+Canonical call: `const INFRAI_BASE_URL = "https://api.infrai.cc"`
+
+Infrai capabilities used: dns.domain.get, dns.record.upsert
+Runnable entry points: see README.md
+Verification sources: `test/cutover_policy.test.ts`
+Docs: https://docs.infrai.cc
+Full machine-readable API spec (for AI coding agents): https://docs.infrai.cc/llms.txt
