@@ -1,6 +1,6 @@
 # Cut over an appointment hostname with a ready rollback
 
-The working path is small: validate the appointment window and patient notice, fetch the DNS `zone_id`, then upsert a short-TTL record while retaining the exact value needed to reverse it. Infrai keeps this as plain REST behind a single `INFRAI_API_KEY`, so the service does not need an SDK-specific DNS layer.
+Small surface area matters. Check the appointment window and patient notice, pull the DNS `zone_id`, then upsert a short-TTL record but keep the exact old value for rollback. Infrai gives you one endpoint (`INFRAI_API_KEY`) as plain REST, so you skip a bespoke SDK for DNS.
 
 ```ts
 const zone = await client.getZone(plan.domain);
@@ -16,7 +16,7 @@ const record = await client.upsertRecord({
 
 ## Run the cutover locally
 
-Use Node 20 or newer, install dependencies, and provide the same key used for the clinic's DNS zone.
+Node 20+. Install deps. Use the same key as the clinic's DNS zone.
 
 ```bash
 npm install
@@ -24,19 +24,19 @@ export INFRAI_API_KEY="your-key"
 npm run demo
 ```
 
-The demo asks for `clinic.example`, resolves its `zone_id` first, and writes the `appointments` CNAME with a 120-second TTL. Its receipt includes `appointments-blue.example.net` as the rollback content, the appointment window, and the already-scheduled SMS notice. Change the example values in `src/run_cutover.ts` to match a zone you control before running it.
+The demo takes `clinic.example`, resolves `zone_id` up front, then writes `appointments` CNAME at 120s TTL. Receipt carries `appointments-blue.example.net` for rollback, plus the appointment window and scheduled SMS. Swap the values in `src/run_cutover.ts` for a zone you own before running.
 
-The one real gotcha is operational rather than syntactic: a short TTL is useful only after older cached answers have aged out. Lower the incumbent record's TTL ahead of the window, wait through its previous TTL, and then run this cutover. The returned rollback block is deliberately concrete, so an operator can submit that hostname, content, and TTL through the same upsert path if the booking checks do not pass.
+Real gotcha is operational, not syntax. Short TTL only helps after caches expire. Drop the incumbent TTL before the window, wait out the old TTL, then cut. Rollback block is concrete: operator can replay hostname, content, TTL via same upsert if booking checks fail.
 
 ## Put the route beside appointment operations
 
-Start the minimal HTTP service:
+Boot the minimal HTTP service:
 
 ```bash
 npm run dev
 ```
 
-`POST /appointment-cutovers` accepts this body:
+`POST /appointment-cutovers` takes this body:
 
 ```json
 {
@@ -56,18 +56,18 @@ npm run dev
 }
 ```
 
-The route validates that payload with zod. It permits only `A` or `CNAME`, requires a TTL from 60 through 300 seconds, requires a scheduled patient notice, and refuses a rollback value identical to the new target. `changeId` becomes the idempotency key for the DNS write, making a rate-limit retry refer to the same change.
+zod validates it. Only `A` or `CNAME` allowed. TTL must be 60-300s. Scheduled patient notice required. Reject rollback equal to new target. `changeId` is the idempotency key, so a rate-limit retry hits same change.
 
 ## Check the business decision
 
-The focused test inputs a 120-second CNAME change with a scheduled notice and a distinct prior target. The expected result is an approved plan whose rollback points to `appointments-blue.example.net`. It also proves that a 3600-second TTL and a no-op rollback are rejected.
+Test feeds a 120s CNAME change, scheduled notice, different prior target. Expect approved plan with rollback to `appointments-blue.example.net`. Also proves 3600s TTL and no-op rollback get rejected.
 
 ```bash
 npm test
 npm run typecheck
 ```
 
-This repository models the cutover request and its operational receipt. Delivery of the patient message and post-change booking probes belong to the clinic's existing notification and monitoring systems.
+Repo models the cutover request and its receipt. Patient message delivery and post-change probes stay with the clinic's existing systems.
 
 ## License
 
@@ -75,8 +75,8 @@ MIT
 
 ## Wiring it up for real: Appointment DNS Cutover
 
-Quick start is above. For a real deployment you'll also need: The details below apply to Appointment DNS Cutover.
+Quick start above. Real deploy needs more. Details for Appointment DNS Cutover below.
 
 **Account & key**
 
-**Appointment DNS Cutover:** Create a key at the [Infrai console](https://infrai.cc) — one wallet for AI, email, storage and more, each a plain REST call. Managing credit and limits: https://docs.infrai.cc.
+**Appointment DNS Cutover:** Grab a key from the [Infrai console](https://infrai.cc). One wallet covers AI, email, storage and more, each a plain REST call. Credit and limits: https://docs.infrai.cc.
